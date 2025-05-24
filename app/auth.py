@@ -4,6 +4,7 @@ from jose import jwt, JWTError
 from datetime import datetime, timedelta
 from passlib.context import CryptContext
 from app.utils import success_response,error_response
+from app.storage import InMemoryStorage
 
 router = APIRouter()
 SECRET_KEY = "mysecret"
@@ -19,7 +20,6 @@ def hash_password(password: str):
 def verify_password(plain, hashed):
     return pwd_context.verify(plain, hashed)
 
-users = {}
 
 def create_token(username: str):
     payload = {
@@ -37,14 +37,14 @@ def get_current_user(token: str = Depends(oauth2_scheme)):
 
 @router.post("/register")
 def register(form: OAuth2PasswordRequestForm = Depends()):
-    if form.username in users:
+    if form.username in InMemoryStorage.users:
         raise HTTPException(status_code=400, detail=error_response("User exists"))
-    users[form.username] = hash_password(form.password)
+    InMemoryStorage.users[form.username] = hash_password(form.password)
     return success_response("User registered") 
 
 @router.post("/login")
 def login(form: OAuth2PasswordRequestForm = Depends()):
-    user = users.get(form.username)
+    user = InMemoryStorage.users.get(form.username)
     if not user or  not verify_password(form.password, user):
         raise HTTPException(status_code=400, detail=error_response("Wrong credentials"))
     token = create_token(form.username)
