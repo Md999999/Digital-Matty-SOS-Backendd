@@ -1,9 +1,13 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from datetime import datetime
 from typing import Dict, List
 from app.models import EmergencyContact, SOSRequest, SOSEvent
 from app.auth import get_current_user
 from app.utils import success_response,error_response
+import re
+import logging
+logger= logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 
 router = APIRouter()
 
@@ -12,9 +16,13 @@ sos_logs: Dict[str, List[Dict]] = {}
 
 @router.post("/contacts")
 def add_contact(contact: EmergencyContact, username: str = Depends(get_current_user)):
-    if username not in user_contacts:
-        user_contacts[username] = []
-    user_contacts[username].append(contact)
+    if not re.fullmatch(r"\+?\d{10,15}", contact.phone):
+        raise HTTPException(status_code=400, detail=error_response("Invalid phone number"))
+    contacts= user_contacts.setdefault(username, [])
+    if any(c.phone == contact.phone for c in contacts):
+        raise HTTPException(status_code=400, detail=error_response("Contact already exists"))
+    
+    contacts.append(contact)
     return success_response("Contact Added")
 
 @router.get("/contacts", response_model=List[EmergencyContact])
@@ -39,7 +47,7 @@ def send_sos(sos: SOSRequest, username: str = Depends(get_current_user)):
             "relationship": contact.relationship,
             "alert_message": f"ALERT! {username} triggered an SOS: '{sos.message}'"
         }
-        print(f"Dispatching alert: {alert}")
+        logger(f"Dispatching alert: {alert}")
         alerts.append(alert)
 
     return {
