@@ -3,6 +3,7 @@ from datetime import datetime
 from typing import Dict, List
 from app.models import EmergencyContact, SOSRequest, SOSEvent
 from app.auth import get_current_user
+from app.utils import success_response,error_response
 
 router = APIRouter()
 
@@ -14,7 +15,7 @@ def add_contact(contact: EmergencyContact, username: str = Depends(get_current_u
     if username not in user_contacts:
         user_contacts[username] = []
     user_contacts[username].append(contact)
-    return {"message": "Contact added"}
+    return success_response("Contact Added")
 
 @router.get("/contacts", response_model=List[EmergencyContact])
 def get_contacts(username: str = Depends(get_current_user)):
