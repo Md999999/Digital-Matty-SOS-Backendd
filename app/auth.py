@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import jwt, JWTError
 from datetime import datetime, timedelta
+from app.utils import success_response,error_response
 
 router = APIRouter()
 SECRET_KEY = "mysecret"
@@ -28,18 +29,18 @@ def get_current_user(token: str = Depends(oauth2_scheme)):
 @router.post("/register")
 def register(form: OAuth2PasswordRequestForm = Depends()):
     if form.username in users:
-        raise HTTPException(status_code=400, detail="User exists")
+        raise HTTPException(status_code=400, detail=error_response("User exists"))
     users[form.username] = form.password
-    return {"message": "User registered"}
+    return success_response("User registered") 
 
 @router.post("/login")
 def login(form: OAuth2PasswordRequestForm = Depends()):
     user = users.get(form.username)
     if not user or user != form.password:
-        raise HTTPException(status_code=400, detail="Wrong credentials")
+        raise HTTPException(status_code=400, detail=error_response("Wrong credentials"))
     token = create_token(form.username)
-    return {"access_token": token, "token_type": "bearer"}
+    return success_response("Login Successful",{"access_token": token, "token_type": "bearer"})
 
 @router.get("/protected")
 def protected(user: str = Depends(get_current_user)):
-    return {"message": f"Hello {user}, you're authenticated!"}
+    return success_response("Authenticated",{"user": user})
