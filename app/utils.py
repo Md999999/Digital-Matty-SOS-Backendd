@@ -4,3 +4,9 @@ def success_response(message: str, data=None):
         "message": message,
         "data": data
     }
+
+def error_response(message:str):
+    return{
+        "status":False,
+        "message": message
+    }
