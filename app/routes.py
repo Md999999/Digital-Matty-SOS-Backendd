@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from datetime import datetime
 from typing import Dict, List
-from app.models import EmergencyContact, SOSRequest, SOSEvent
+from app.models import EmergencyContact, SOSRequest, SOSEvent, UserProfile
 from app.auth import get_current_user
 from app.utils import success_response,error_response
 from app.storage import InMemoryStorage
@@ -54,3 +54,37 @@ def send_sos(sos: SOSRequest, username: str = Depends(get_current_user)):
 @router.get("/sos", response_model=List[SOSEvent])
 def get_sos_logs(username: str = Depends(get_current_user)):
     return InMemoryStorage.sos_logs.get(username, [])
+
+@router.post("/profile")
+def update_profile(profile: UserProfile, username : str = Depends(get_current_user)):
+    InMemoryStorage.profiles[username] = profile
+    return success_response("Profile updated")
+
+@router.get("/profile", response_model=UserProfile)
+def get_profile(username: str =Depends(get_current_user)):
+    profile = InMemoryStorage.profiles.get(username)
+    if profile is None:
+        raise HTTPException(404,"Profile not found")
+    return profile
+
+@router.post("/sos/cancel")
+def cancel_sos(username: str = Depends(get_current_user)):
+    if not InMemoryStorage.sos_logs.get(username):
+        raise HTTPException(404,"No SOS event to cancel")
+    last_sos = InMemoryStorage.sos_logs[username].pop()
+    return success_response("Last SOS event canceled.", {"canceled_sos": last_sos})
+
+def is_admin(username : str) -> bool:
+    return username == "admin"
+
+@router.get("/admin/sos", response_model=Dict[str,List[SOSEvent]])
+def view_all_sos(username: str = Depends(get_current_user)):
+    if not is_admin(username):
+        raise HTTPException(403, "Not Authorised")
+    return InMemoryStorage.sos_logs
+
+@router.get("/admin/users", response_model=Dict[str, UserProfile])
+def view_all_users(username : str = Depends(get_current_user)):
+    if not is_admin(username):
+        raise HTTPException(403, "Not authorized")
+    return InMemoryStorage.profiles
